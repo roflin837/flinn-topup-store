@@ -238,16 +238,17 @@ function processCheckout() {
   form.method = "POST";
   form.action = "https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry";
 
+  // Di dalam function processCheckout
   const params = {
-    merchantCode: MERCHANT_CODE,
-    paymentAmount: selectedPrice,
-    merchantOrderId: merchantOrderId,
-    productDetails: `Topup ${selectedProduct} - ${userId}`,
-    email: "flinnstore@gmail.com",
-    paymentMethod: "SP", // SP untuk QRIS/ShopeePay
-    callbackUrl: window.location.href,
-    returnUrl: window.location.href,
-    signature: signature,
+      merchantCode: MERCHANT_CODE,
+      paymentAmount: selectedPrice,
+      merchantOrderId: merchantOrderId,
+      productDetails: `Topup ${selectedProduct} - ${userId}`,
+      email: "flinnstore@gmail.com",
+      paymentMethod: "", // KOSONGKAN BIAR USER BISA PILIH SENDIRI DI HALAMAN DUITKU
+      callbackUrl: window.location.href,
+      returnUrl: window.location.href,
+      signature: signature
   };
 
   for (const key in params) {
