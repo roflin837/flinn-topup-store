@@ -1,6 +1,7 @@
 // 1. KONFIGURASI DUITKU (SANDBOX)
 const MERCHANT_CODE = "DS28118";
 const API_KEY = "a5ac61c681a88e6774084fa4a5a7b4dd";
+const DUITKU_URL = "https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry"; // INI WAJIB ADA
 
 // 2. STATE & DATA
 let selectedProduct = null;
@@ -106,7 +107,6 @@ function renderHome(filter = "Semua") {
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" id="game-container"></div>
         </section>`;
 
-  // Langsung render item setelah container dibuat
   renderItems("", filter);
 }
 
@@ -218,49 +218,58 @@ function selectNominal(el, name, price) {
 }
 
 // 5. PROSES KE DUITKU (METODE REDIRECT)
-function processCheckout() {
+async function processCheckout() {
   const userId = document.getElementById("user-id").value;
   if (!userId || selectedPrice === 0)
     return alert("Flinn, data belum lengkap!");
 
   const merchantOrderId = "FLN-" + Date.now();
-
-  // Buat Signature MD5
   const signature = CryptoJS.MD5(
     MERCHANT_CODE + merchantOrderId + selectedPrice + API_KEY,
   ).toString();
 
-  // Simpan ke riwayat lokal
-  saveToHistory(merchantOrderId, userId, selectedPrice);
-
-  // Kirim via Form (Anti-CORS)
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry";
-
-  // Di dalam function processCheckout
-  const params = {
-      merchantCode: MERCHANT_CODE,
-      paymentAmount: selectedPrice,
-      merchantOrderId: merchantOrderId,
-      productDetails: `Topup ${selectedProduct} - ${userId}`,
-      email: "flinnstore@gmail.com",
-      paymentMethod: "", // KOSONGKAN BIAR USER BISA PILIH SENDIRI DI HALAMAN DUITKU
-      callbackUrl: window.location.href,
-      returnUrl: window.location.href,
-      signature: signature
+  const paymentData = {
+    merchantCode: MERCHANT_CODE,
+    paymentAmount: selectedPrice,
+    merchantOrderId: merchantOrderId,
+    productDetails: `Topup ${selectedProduct} - ${userId}`,
+    email: "flinnstore@gmail.com",
+    paymentMethod: "",
+    callbackUrl: window.location.href,
+    returnUrl: window.location.href,
+    signature: signature,
   };
 
-  for (const key in params) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = key;
-    input.value = params[key];
-    form.appendChild(input);
-  }
+  try {
+    const response = await fetch(DUITKU_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(paymentData),
+    });
 
-  document.body.appendChild(form);
-  form.submit(); // Mental ke halaman bayar Duitku
+    const result = await response.json();
+
+    if (result.statusCode === "00" && result.paymentUrl) {
+      saveToHistory(merchantOrderId, userId, selectedPrice);
+      window.location.href = result.paymentUrl;
+    } else {
+      throw new Error(result.statusMessage);
+    }
+  } catch (error) {
+    // Kalo kena CORS, kita pake cara paksa (Form Post)
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = DUITKU_URL;
+    for (const key in paymentData) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = paymentData[key];
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  }
 }
 
 // 6. RIWAYAT (HISTORY)
@@ -317,7 +326,6 @@ function showHistory() {
         </div>`;
 }
 
-// 7. JALANKAN PAS LOAD
 window.onload = () => {
   renderHome("Semua");
 };
