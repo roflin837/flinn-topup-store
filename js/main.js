@@ -203,4 +203,7 @@ function showHistory() {
         </div>`;
 }
 
-window.onload = renderHome;
+// Pastiin baris ini ada di paling bawah file main.js
+window.onload = () => {
+    renderHome("Semua");
+};
